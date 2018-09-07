@@ -1,6 +1,8 @@
 import { Component } from '@angular/core';
 import * as io from "socket.io-client";
 import { AppConstants } from './constants/app-constants';
+import { AppConfig } from './constants/app-config';
+import { Queue } from './utility/data-structure/queue'
 
 @Component({
   selector: 'app-root',
@@ -10,89 +12,59 @@ import { AppConstants } from './constants/app-constants';
 export class AppComponent {
 
   constructor() {
-    // const socket = io(AppConstants.SOCKET_URL);
-    // socket.on('connect', function(){
-    //   console.log('connect');
-    // });
 
-    // socket.on('disconnect', function(){
-    //   console.log('disconnect');
-    // });
+    this.dataInit();
 
-    // socket.emit('client-to-server', 'hello from client');
+  }
 
-    // socket.on('server-to-client', function(msg){
-    //   console.log('Message from server :' + msg);
-    // });
+  public queue = new Queue;
+  public data = [];
+  public dataExtraction = false;
 
-    // Client 1
-    var client_1_socket = io(AppConstants.SOCKET_URL + '/client-1');
+  private dataInit = function() {
 
-    client_1_socket.on('connect', function(){
-      console.log('client_1_socket connect');
-    });
+    for(let c = 1; c <= AppConfig.NUMBER_OF_CLIENTS; c++) {
+      var client_socket = this.createClientSocket(AppConstants.NAMESPACE_PREFIX + c);
 
-    client_1_socket.on('disconnect', function(){
-      console.log('client_1_socket disconnect');
-    });
+      client_socket.on('connect', function(){
+        // console.log(AppConstants.NAMESPACE_PREFIX + c +' connect');
+      });
+  
+      client_socket.on('disconnect', () => {
+        // console.log(AppConstants.NAMESPACE_PREFIX + c +' disconnect');
+        // this.queue.emptyQueue();
+      });
+  
+      client_socket.on(AppConstants.EVENT_PREFIX + c + AppConstants.EVENT_SUFFIX, (msg) => {
+        // console.log(AppConstants.EVENT_PREFIX + c + AppConstants.EVENT_SUFFIX, msg);
+        let newdate = new Date();
+        this.queue.enqueue({
+          'clientId': c,
+          'data': msg
+        });
+        // console.log(this.queue);
+        if(!this.dataExtraction) {
+          this.getDataFromQueue();
+        }
+      });
+    }
+  }
 
-    // client_1_socket.emit('client-to-server', 'hello from client');
+  private createClientSocket = function(socketNamespace) {
+    return io(AppConstants.SOCKET_URL + '/' + socketNamespace, {transports: ['websocket'], upgrade: false});
+  }
 
-    client_1_socket.on('client_1', function(msg){
-      console.log('Message from client_1 :', msg);
-    });
-
-    // Client 2
-    var client_2_socket = io(AppConstants.SOCKET_URL + '/client-2');
-
-    client_2_socket.on('connect', function(){
-      console.log('client_2_socket connect');
-    });
-
-    client_2_socket.on('disconnect', function(){
-      console.log('client_2_socket disconnect');
-    });
-
-    // client_1_socket.emit('client-to-server', 'hello from client');
-
-    client_2_socket.on('client_2', function(msg){
-      console.log('Message from client_2 :', msg);
-    });
-
-    // Client 3
-    var client_3_socket = io(AppConstants.SOCKET_URL + '/client-3');
-
-    client_3_socket.on('connect', function(){
-      console.log('client_3_socket connect');
-    });
-
-    client_3_socket.on('disconnect', function(){
-      console.log('client_3_socket disconnect');
-    });
-
-    // client_1_socket.emit('client-to-server', 'hello from client');
-
-    client_3_socket.on('client_3', function(msg){
-      console.log('Message from client_3 :', msg);
-    });
-
-    // Client 4
-    var client_4_socket = io(AppConstants.SOCKET_URL + '/client-4');
-
-    client_4_socket.on('connect', function(){
-      console.log('client_4_socket connect');
-    });
-
-    client_4_socket.on('disconnect', function(){
-      console.log('client_4_socket disconnect');
-    });
-
-    // client_1_socket.emit('client-to-server', 'hello from client');
-
-    client_4_socket.on('client_4', function(msg){
-      console.log('Message from client_4 :', msg);
-    });
-
+  private getDataFromQueue = function() {
+    console.log('---------- Data Extraction start ----------');
+    console.log(this.queue);
+    this.dataExtraction = true;
+    while(!this.queue.isEmpty()) {
+      this.data.push(this.queue.dequeue());
+    }
+    this.dataExtraction = false;
+    console.log(this.data);
+    console.log(this.queue);
+    console.log('---------- Data Extraction stopped ----------')
   }
 
   title = 'app';
